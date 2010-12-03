@@ -78,14 +78,13 @@ Valid permission options are:
 
 `authenticated_read`: - Owner gets FULL_CONTROL, and any principal authenticated as a registered Amazon S3 user is granted READ access.
 
-## Using Cloudfront
+## Using CloudFront
 
-To use cloudfront, enable it in your config/assets.yml and set the correct CloudFront domain name:
+To use CloudFront, simply add your CloudFront domain to your environment specific asset host (i.e config/environments/production.rb):
 
-    use_cloudfront: true
-    cloudfront_domain: di8snu3y5lwja.cloudfront.net
+    config.action_controller.asset_host = "http://di8snu3y5lwja.cloudfront.net"
 
-This will use the CloudFront domainname for your assets instead of serving them from the (slow) S3 bucket.
+This will use the CloudFront domain name for your assets instead of serving them from the (slow) S3 bucket.
 
 For this to work you need to make sure you have the CloudFront enabled via you Amazon acccount page. Go here: http://aws.amazon.com/cloudfront/ and click "Sign Up"
 
