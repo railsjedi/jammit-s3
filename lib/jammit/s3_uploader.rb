@@ -16,6 +16,7 @@ module Jammit
         @secret_access_key = options[:secret_access_key] || Jammit.configuration[:s3_secret_access_key]
         @bucket_location = options[:bucket_location] || Jammit.configuration[:s3_bucket_location]
         @cache_control = options[:cache_control] || Jammit.configuration[:s3_cache_control]
+        @access_control_allow_origin = options[:access_control_allow_origin] || Jammit.configuration[:s3_access_control_allow_origin]
         @acl = options[:acl] || Jammit.configuration[:s3_permission]
 
         @bucket = find_or_create_bucket
@@ -89,6 +90,7 @@ module Jammit
           new_object.content_type = MimeMagic.by_path(remote_path)
           new_object.content = open(local_path)
           new_object.content_encoding = "gzip" if use_gzip
+          new_object.access_control_allow_origin = @access_control_allow_origin if @access_control_allow_origin
           new_object.acl = @acl if @acl
           new_object.save
           
