@@ -98,8 +98,6 @@ module Jammit
           else
             log "pushing file to s3: #{remote_path}"
           end
-        else
-          log "file has not changed: #{remote_path}"
         end     
       end
     end
