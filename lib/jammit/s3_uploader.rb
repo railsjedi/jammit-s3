@@ -15,6 +15,7 @@ module Jammit
         @access_key_id = options[:access_key_id] || Jammit.configuration[:s3_access_key_id]
         @secret_access_key = options[:secret_access_key] || Jammit.configuration[:s3_secret_access_key]
         @bucket_location = options[:bucket_location] || Jammit.configuration[:s3_bucket_location]
+        @package_path = options[:package_path] || Jammit.configuration[:package_path]
         @cache_control = options[:cache_control] || Jammit.configuration[:s3_cache_control]
         @acl = options[:acl] || Jammit.configuration[:s3_permission]
 
@@ -32,10 +33,10 @@ module Jammit
 
       # add default package path
       if Jammit.gzip_assets
-        globs << "public/#{Jammit.package_path}/**/*.gz"
+        globs << "public/#{@package_path}/**/*.gz"
       else
-        globs << "public/#{Jammit.package_path}/**/*.css"
-        globs << "public/#{Jammit.package_path}/**/*.js"
+        globs << "public/#{@package_path}/**/*.css"
+        globs << "public/#{@package_path}/**/*.js"
       end
 
       # add images
@@ -62,7 +63,7 @@ module Jammit
       log "#{ASSET_ROOT}/#{glob}"
       Dir["#{ASSET_ROOT}/#{glob}"].each do |local_path|
         next if File.directory?(local_path)
-        remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\//, "")
+        remote_path = local_path.gsub(/^#{ASSET_ROOT}\/public\/(#{@package_path}\/)?/, "#{@package_path}/")
 
         use_gzip = false
 

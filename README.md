@@ -27,6 +27,10 @@ Within your `config/assets.yml`, just add a toplevel key called `s3_bucket` that
 
     s3_bucket: my-awesome-jammit-bucket
 
+The package_path parameter can also be used to create a route folder in your S3 bucket.  This can be useful when pushing assets for different environments.
+  
+    package_path: <%= ENV['RAILS_ENV'] %>
+
 ## Deployment
 
 To deploy your files to s3, just the jammit-s3 command at your project's root.
