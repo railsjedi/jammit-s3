@@ -11,17 +11,17 @@ module Jammit
     def initialize(options = {})
       @bucket = options[:bucket]
       unless @bucket
-        @bucket_name = options[:bucket_name] || Jammit.configuration[:s3_bucket]
-        @access_key_id = options[:access_key_id] || Jammit.configuration[:s3_access_key_id]
-        @secret_access_key = options[:secret_access_key] || Jammit.configuration[:s3_secret_access_key]
-        @bucket_location = options[:bucket_location] || Jammit.configuration[:s3_bucket_location]
-        @cache_control = options[:cache_control] || Jammit.configuration[:s3_cache_control]
-        @acl = options[:acl] || Jammit.configuration[:s3_permission]
+        @bucket_name = options[:bucket_name] || Jammit.cloudfront_configuration[:s3_bucket]
+        @access_key_id = options[:access_key_id] || Jammit.cloudfront_configuration[:s3_access_key_id]
+        @secret_access_key = options[:secret_access_key] || Jammit.cloudfront_configuration[:s3_secret_access_key]
+        @bucket_location = options[:bucket_location] || Jammit.cloudfront_configuration[:s3_bucket_location]
+        @cache_control = options[:cache_control] || Jammit.cloudfront_configuration[:s3_cache_control]
+        @acl = options[:acl] || Jammit.cloudfront_configuration[:s3_permission]
 
         @bucket = find_or_create_bucket
-        if Jammit.configuration[:use_cloudfront]
+        if Jammit.cloudfront_configuration[:use_cloudfront]
           @changed_files = []
-          @cloudfront_dist_id = options[:cloudfront_dist_id] || Jammit.configuration[:cloudfront_dist_id]
+          @cloudfront_dist_ids = options[:cloudfront_dist_ids] || Jammit.cloudfront_configuration[:cloudfront_dist_ids]
         end
       end
     end
@@ -39,10 +39,10 @@ module Jammit
       end
 
       # add images
-      globs << "public/images/**/*" unless Jammit.configuration[:s3_upload_images] == false
+      globs << "public/images/**/*" unless Jammit.cloudfront_configuration[:s3_upload_images] == false
 
       # add custom configuration if defined
-      s3_upload_files = Jammit.configuration[:s3_upload_files]
+      s3_upload_files = Jammit.cloudfront_configuration[:s3_upload_files]
       globs << s3_upload_files if s3_upload_files.is_a?(String)
       globs += s3_upload_files if s3_upload_files.is_a?(Array)
 
@@ -51,7 +51,7 @@ module Jammit
         upload_from_glob(glob)
       end
 
-      if Jammit.configuration[:use_cloudfront] && !@changed_files.empty?
+      if Jammit.cloudfront_configuration[:use_cloudfront] && !@changed_files.empty?
         log "invalidating cloudfront cache for changed files"
         invalidate_cache(@changed_files)
       end
@@ -71,7 +71,7 @@ module Jammit
           use_gzip = true
           remote_path = remote_path.gsub(/\.gz$/, "")
         end
-        
+
         # check if the file already exists on s3
         begin
           obj = @bucket.objects.find_first(remote_path)
@@ -79,7 +79,7 @@ module Jammit
           obj = nil
         end
 
-        # if the object does not exist, or if the MD5 Hash / etag of the 
+        # if the object does not exist, or if the MD5 Hash / etag of the
         # file has changed, upload it
         if !obj || (obj.etag != Digest::MD5.hexdigest(File.read(local_path)))
 
@@ -93,7 +93,7 @@ module Jammit
           log "pushing file to s3: #{remote_path}"
           new_object.save
 
-          if Jammit.configuration[:use_cloudfront] && obj
+          if Jammit.cloudfront_configuration[:use_cloudfront] && obj
             log "File changed and will be invalidated in cloudfront: #{remote_path}"
             @changed_files << remote_path
           end
@@ -127,28 +127,33 @@ module Jammit
       end
       digest = HMAC::SHA1.new(@secret_access_key)
       digest << date = Time.now.utc.strftime("%a, %d %b %Y %H:%M:%S %Z")
-      uri = URI.parse("https://cloudfront.amazonaws.com/2010-11-01/distribution/#{@cloudfront_dist_id}/invalidation")
-      req = Net::HTTP::Post.new(uri.path)
-      req.initialize_http_header({
-        'x-amz-date' => date,
-        'Content-Type' => 'text/xml',
-        'Authorization' => "AWS %s:%s" % [@access_key_id, Base64.encode64(digest.digest).gsub("\n", '')]
-      })
-      req.body = "<InvalidationBatch>#{paths}<CallerReference>#{@cloudfront_dist_id}_#{Time.now.utc.to_i}</CallerReference></InvalidationBatch>"
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      res = http.request(req)
-      log result_message(req, res)
+
+      # Invaliate cache over all the cloufront dist ids we have configured
+      @cloudfront_dist_ids.each do |cloudfront_dist_id|
+        uri = URI.parse("https://cloudfront.amazonaws.com/2010-11-01/distribution/#{cloudfront_dist_id}/invalidation")
+        req = Net::HTTP::Post.new(uri.path)
+        req.initialize_http_header({
+                                     'x-amz-date' => date,
+                                     'Content-Type' => 'text/xml',
+                                     'Authorization' => "AWS %s:%s" % [@access_key_id, Base64.encode64(digest.digest).gsub("\n", '')]
+                                   })
+        req.body = "<InvalidationBatch>#{paths}<CallerReference>#{cloudfront_dist_id}_#{Time.now.utc.to_i}</CallerReference></InvalidationBatch>"
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        res = http.request(req)
+        log result_message(cloudfront_dist_id, req, res)
+      end
     end
 
-    def result_message req, res
+    def result_message cloudfront_dist_id, req, res
       if res.code == "201"
-        'Invalidation request succeeded'
+        "Invalidation request succeeded for Dist ID: #{cloudfront_dist_id}"
       else
         <<-EOM.gsub(/^\s*/, '')
         =============================
         Failed with #{res.code} error!
+        Dist ID: #{cloudfront_dist_id}
         Request path:#{req.path}
         Request header: #{req.to_hash}
         Request body:#{req.body}
