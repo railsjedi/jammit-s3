@@ -127,28 +127,33 @@ module Jammit
       end
       digest = HMAC::SHA1.new(@secret_access_key)
       digest << date = Time.now.utc.strftime("%a, %d %b %Y %H:%M:%S %Z")
-      uri = URI.parse("https://cloudfront.amazonaws.com/2010-11-01/distribution/#{@cloudfront_dist_id}/invalidation")
-      req = Net::HTTP::Post.new(uri.path)
-      req.initialize_http_header({
-        'x-amz-date' => date,
-        'Content-Type' => 'text/xml',
-        'Authorization' => "AWS %s:%s" % [@access_key_id, Base64.encode64(digest.digest).gsub("\n", '')]
-      })
-      req.body = "<InvalidationBatch>#{paths}<CallerReference>#{@cloudfront_dist_id}_#{Time.now.utc.to_i}</CallerReference></InvalidationBatch>"
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      res = http.request(req)
-      log result_message(req, res)
+
+      # Invaliate cache over all the cloufront dist ids we have configured
+      @cloudfront_dist_ids.each do |cloudfront_dist_id|
+        uri = URI.parse("https://cloudfront.amazonaws.com/2010-11-01/distribution/#{cloudfront_dist_id}/invalidation")
+        req = Net::HTTP::Post.new(uri.path)
+        req.initialize_http_header({
+                                     'x-amz-date' => date,
+                                     'Content-Type' => 'text/xml',
+                                     'Authorization' => "AWS %s:%s" % [@access_key_id, Base64.encode64(digest.digest).gsub("\n", '')]
+                                   })
+        req.body = "<InvalidationBatch>#{paths}<CallerReference>#{cloudfront_dist_id}_#{Time.now.utc.to_i}</CallerReference></InvalidationBatch>"
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        res = http.request(req)
+        log result_message(cloudfront_dist_id, req, res)
+      end
     end
 
-    def result_message req, res
+    def result_message cloudfront_dist_id, req, res
       if res.code == "201"
-        'Invalidation request succeeded'
+        "Invalidation request succeeded for Dist ID: #{cloudfront_dist_id}"
       else
         <<-EOM.gsub(/^\s*/, '')
         =============================
         Failed with #{res.code} error!
+        Dist ID: #{cloudfront_dist_id}
         Request path:#{req.path}
         Request header: #{req.to_hash}
         Request body:#{req.body}
