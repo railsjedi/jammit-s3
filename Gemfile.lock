@@ -4,24 +4,29 @@ PATH
     jammit-s3 (0.6.0.2)
       jammit (>= 0.5.4)
       mimemagic (>= 0.1.7)
+      ruby-hmac
       s3 (>= 0.3.7)
 
 GEM
   remote: http://rubygems.org/
   specs:
+    addressable (2.7.0)
+      public_suffix (>= 2.0.2, < 5.0)
     archive-tar-minitar (0.5.2)
-    closure-compiler (0.3.3)
     columnize (0.3.1)
+    cssmin (1.0.3)
     diff-lcs (1.1.2)
-    jammit (0.5.4)
-      closure-compiler (>= 0.1.0)
-      yui-compressor (>= 0.9.1)
+    jammit (0.7.0)
+      cssmin (~> 1.0)
+      jsmin (~> 1.0)
+    jsmin (1.0.1)
     linecache (0.43)
     linecache19 (0.5.11)
       ruby_core_source (>= 0.1.4)
-    mimemagic (0.1.7)
-    proxies (0.2.1)
-    rake (0.8.7)
+    mimemagic (0.3.4)
+    proxies (0.2.3)
+    public_suffix (4.0.3)
+    rake (12.3.3)
     rspec (2.0.0.beta.22)
       rspec-core (= 2.0.0.beta.22)
       rspec-expectations (= 2.0.0.beta.22)
@@ -45,11 +50,12 @@ GEM
       columnize (>= 0.3.1)
       linecache19 (>= 0.5.11)
       ruby-debug-base19 (>= 0.11.19)
+    ruby-hmac (0.4.0)
     ruby_core_source (0.1.4)
       archive-tar-minitar (>= 0.5.2)
-    s3 (0.3.7)
+    s3 (0.3.28)
+      addressable
       proxies
-    yui-compressor (0.9.1)
 
 PLATFORMS
   ruby
@@ -60,3 +66,4 @@ DEPENDENCIES
   rspec (>= 2.0.0.beta)
   ruby-debug
   ruby-debug19
+  ruby-hmac
